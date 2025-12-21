@@ -1,1 +1,15 @@
 Ini folder buat taruh dataset
+Sumber dataset: https://www.kaggle.com/datasets/mattiuzc/stock-exchange-data
+Penjelasan Dataset:
+1. indexInfo.csv
+ - Tabel Metadata/Lookup. Ini berisi informasi pendukung seperti Nama Index (NYA, HSI), 
+  Wilayah (Region), Bursa Efek (Exchange), dan Mata Uang asli (Currency).
+ - Data ini penting untuk filter/kategori
+2. indexData.csv
+ - Raw Data. Ini berisi histori harga harian (Open, High, Low, Close) dalam mata uang 
+   lokal masing-masing negara. Masih memiliki banyak missing values.
+ - perlu processing sebelum dipakai
+3. indexProcessed.csv
+ - Cleaned & Standarized Data. Ini versi dari indexData.csv yang sudah dibersihkan,
+   di drop data kosongnya, dan ditambahkan satu kolom penting: CloseUSD.
+ - Ini akan dipakai untuk analisis dan Modeling ML di notebook ini.
