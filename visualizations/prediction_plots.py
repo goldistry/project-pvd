@@ -91,7 +91,8 @@ def plot_future_forecast(data, future_df, model_name="ARIMA", history_days=100):
         xaxis_title='Date',
         yaxis_title='Price (USD)',
         height=600,
-        hovermode='x unified'
+        hovermode='x unified',
+        margin=dict(r=100)
     )
     
     return fig, percentage_change

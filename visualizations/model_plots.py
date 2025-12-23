@@ -61,7 +61,7 @@ def plot_training_history(history, model_name):
 
 def plot_predictions_comparison(actual, predictions_dict, zoom=None):
     """
-    Plot perbandingan prediksi semua model
+    Plot perbandingan prediksi semua model dengan subplot terpisah
     
     Parameters:
     -----------
@@ -80,55 +80,65 @@ def plot_predictions_comparison(actual, predictions_dict, zoom=None):
     }
     
     fig = make_subplots(
-        rows=2, cols=1,
-        subplot_titles=['Model Predictions Comparison (Full Test Period)', 
-                       f'Zoom View: First {zoom or min(100, len(actual))} Days']
+        rows=4, cols=1,
+        subplot_titles=['ARIMA vs Actual', 'LSTM vs Actual', 'GRU vs Actual', 
+                       f'All Models Comparison (First {zoom or min(100, len(actual))} Days)'],
+        vertical_spacing=0.08
     )
     
-    # Full predictions
-    fig.add_trace(
-        go.Scatter(x=list(range(len(actual))), y=actual, name='Actual',
-                  line=dict(color='#34495E', width=3)),
-        row=1, col=1
-    )
+    # Individual model comparisons
+    model_names = list(predictions_dict.keys())
     
-    for model_name, preds in predictions_dict.items():
+    for i, (model_name, preds) in enumerate(predictions_dict.items()):
+        row = i + 1
+        
+        # Actual data
+        fig.add_trace(
+            go.Scatter(x=list(range(len(actual))), y=actual, name='Actual',
+                      line=dict(color='#34495E', width=2), showlegend=True,
+                      legendgroup=f'group{row}', legendgrouptitle_text=f'{model_name} vs Actual'),
+            row=row, col=1
+        )
+        
+        # Model prediction
         fig.add_trace(
             go.Scatter(x=list(range(len(preds))), y=preds, 
-                      name=f'{model_name} Prediction',
-                      line=dict(color=colors.get(model_name, '#E74C3C'), width=2.5)),
-            row=1, col=1
+                      name=f'{model_name}',
+                      line=dict(color=colors.get(model_name, '#E74C3C'), width=2),
+                      showlegend=True, legendgroup=f'group{row}'),
+            row=row, col=1
         )
     
-    # Zoom view
+    # Combined zoom view
     if zoom is None:
         zoom = min(100, len(actual))
     
     fig.add_trace(
         go.Scatter(x=list(range(zoom)), y=actual[:zoom], name='Actual',
                   line=dict(color='#34495E', width=3), showlegend=False,
-                  mode='lines+markers', marker=dict(size=4)),
-        row=2, col=1
+                  mode='lines+markers', marker=dict(size=3)),
+        row=4, col=1
     )
     
     for model_name, preds in predictions_dict.items():
         fig.add_trace(
             go.Scatter(x=list(range(zoom)), y=preds[:zoom], 
-                      name=f'{model_name} Prediction',
-                      line=dict(color=colors.get(model_name, '#E74C3C'), width=2.5),
-                      showlegend=False, mode='lines+markers', marker=dict(size=4)),
-            row=2, col=1
+                      name=f'{model_name}',
+                      line=dict(color=colors.get(model_name, '#E74C3C'), width=2),
+                      showlegend=False, mode='lines+markers', marker=dict(size=3)),
+            row=4, col=1
         )
     
-    fig.update_xaxes(title_text="Day Index", row=1, col=1)
-    fig.update_xaxes(title_text="Day Index", row=2, col=1)
-    fig.update_yaxes(title_text="Price (USD)", row=1, col=1)
-    fig.update_yaxes(title_text="Price (USD)", row=2, col=1)
+    # Update axes labels
+    for row in range(1, 5):
+        fig.update_xaxes(title_text="Day Index", row=row, col=1)
+        fig.update_yaxes(title_text="Price (USD)", row=row, col=1)
     
     fig.update_layout(
-        height=700,
+        height=1200,
         plot_bgcolor='white',
-        paper_bgcolor='white'
+        paper_bgcolor='white',
+        title_text="Model Predictions Comparison"
     )
     
     return fig
@@ -185,7 +195,8 @@ def plot_metrics_comparison(metrics_dict):
     fig.add_trace(
         go.Bar(x=models, y=mape_values, name='MAPE', 
                marker_color=color_list, showlegend=False,
-               text=[f'{v:.3f}%' for v in mape_values], textposition='outside'),
+               text=[f'{v:.3f}%' for v in mape_values], textposition='outside',
+               textfont=dict(size=12)),
         row=1, col=1
     )
     
@@ -194,7 +205,8 @@ def plot_metrics_comparison(metrics_dict):
     fig.add_trace(
         go.Bar(x=models, y=rmse_values, name='RMSE', 
                marker_color=color_list, showlegend=False,
-               text=[f'{v:.2f}' for v in rmse_values], textposition='outside'),
+               text=[f'{v:.2f}' for v in rmse_values], textposition='outside',
+               textfont=dict(size=12)),
         row=1, col=2
     )
     
@@ -203,7 +215,8 @@ def plot_metrics_comparison(metrics_dict):
     fig.add_trace(
         go.Bar(x=models, y=mae_values, name='MAE', 
                marker_color=color_list, showlegend=False,
-               text=[f'{v:.2f}' for v in mae_values], textposition='outside'),
+               text=[f'{v:.2f}' for v in mae_values], textposition='outside',
+               textfont=dict(size=12)),
         row=1, col=3
     )
     
@@ -212,7 +225,8 @@ def plot_metrics_comparison(metrics_dict):
     fig.add_trace(
         go.Bar(x=models, y=r2_values, name='R2', 
                marker_color=color_list, showlegend=False,
-               text=[f'{v:.4f}' for v in r2_values], textposition='outside'),
+               text=[f'{v:.4f}' for v in r2_values], textposition='outside',
+               textfont=dict(size=12)),
         row=2, col=1
     )
     
@@ -221,7 +235,8 @@ def plot_metrics_comparison(metrics_dict):
     fig.add_trace(
         go.Bar(x=models, y=da_values, name='DA', 
                marker_color=color_list, showlegend=False,
-               text=[f'{v:.2f}%' for v in da_values], textposition='outside'),
+               text=[f'{v:.2f}%' for v in da_values], textposition='outside',
+               textfont=dict(size=12)),
         row=2, col=2
     )
     
@@ -261,11 +276,19 @@ def plot_metrics_comparison(metrics_dict):
     )
     
     fig.update_layout(
-        height=700,
+        height=800,
         title_text="Comprehensive Model Evaluation Metrics",
         showlegend=False,
         plot_bgcolor='white',
-        paper_bgcolor='white'
+        paper_bgcolor='white',
+        margin=dict(t=80, b=60, l=60, r=60)
     )
+    
+    # Update y-axis ranges to provide more space for text annotations
+    fig.update_yaxes(range=[0, max(mape_values) * 1.2], row=1, col=1)
+    fig.update_yaxes(range=[0, max(rmse_values) * 1.2], row=1, col=2)
+    fig.update_yaxes(range=[0, max(mae_values) * 1.2], row=1, col=3)
+    fig.update_yaxes(range=[0, max(r2_values) * 1.2], row=2, col=1)
+    fig.update_yaxes(range=[0, max(da_values) * 1.2], row=2, col=2)
     
     return fig
