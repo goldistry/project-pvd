@@ -175,7 +175,9 @@ def plot_metrics_comparison(metrics_dict):
     fig = make_subplots(
         rows=2, cols=3,
         subplot_titles=['MAPE - Lower is Better', 'RMSE - Lower is Better', 'MAE - Lower is Better',
-                       'R2 Score - Higher is Better', 'Directional Accuracy - Higher is Better', 'Summary']
+                       'R2 Score - Higher is Better', 'Directional Accuracy - Higher is Better', 'Summary Table'],
+        specs=[[{"type": "xy"}, {"type": "xy"}, {"type": "xy"}],
+               [{"type": "xy"}, {"type": "xy"}, {"type": "table"}]]
     )
     
     # MAPE

@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 from statsmodels.tsa.arima.model import ARIMA
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import LSTM, GRU, Dense, Dropout
@@ -193,7 +194,7 @@ def predict_future_arima(data, steps=60, order=(5, 1, 0)):
     
     Parameters:
     -----------
-    data : pd.Series
+    data : pd.Series or pd.DataFrame
         Full historical data
     steps : int
         Number of steps to forecast
@@ -202,14 +203,34 @@ def predict_future_arima(data, steps=60, order=(5, 1, 0)):
         
     Returns:
     --------
-    tuple
-        (forecast_values, confidence_interval)
+    pd.DataFrame
+        DataFrame with Forecast, Lower_Bound, Upper_Bound columns
     """
-    model = ARIMA(data, order=order)
+    # Extract Close column if DataFrame, ensure it's a Series
+    if isinstance(data, pd.DataFrame):
+        series = data['Close']
+    else:
+        series = data
+    
+    # Ensure numeric data
+    series = pd.to_numeric(series, errors='coerce').dropna()
+    
+    model = ARIMA(series, order=order)
     model_fit = model.fit()
     
     forecast_result = model_fit.get_forecast(steps=steps)
     forecast_values = forecast_result.predicted_mean
     conf_int = forecast_result.conf_int()
     
-    return forecast_values, conf_int
+    # Create future dates
+    last_date = series.index[-1]
+    future_dates = pd.date_range(start=last_date + pd.Timedelta(days=1), periods=steps, freq='D')
+    
+    # Create DataFrame
+    forecast_df = pd.DataFrame({
+        'Forecast': forecast_values.values,
+        'Lower_Bound': conf_int.iloc[:, 0].values,
+        'Upper_Bound': conf_int.iloc[:, 1].values
+    }, index=future_dates)
+    
+    return forecast_df

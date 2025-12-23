@@ -188,7 +188,7 @@ def plot_forecast_statistics(future_df, current_price):
     fig.add_vline(x=current_price, line_dash="dash", line_color="red",
                  annotation_text=f'Current: ${current_price:.2f}', row=1, col=1)
     fig.add_vline(x=future_df['Forecast'].mean(), line_dash="dash", line_color="green",
-                 annotation_text=f'Avg: ${future_df["Forecast"].mean():.2f}', row=1, col=2)
+                 annotation_text=f'Avg: ${future_df["Forecast"].mean():.2f}', row=1, col=1)
     
     # Weekly summary
     future_df_copy = future_df.copy()
