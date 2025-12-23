@@ -4,11 +4,12 @@ from statsmodels.tsa.arima.model import ARIMA
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import LSTM, GRU, Dense, Dropout
 from tensorflow.keras.callbacks import EarlyStopping
+from utils.ml_arima import train_ml_arima_model
 import streamlit as st
 
-def train_arima_model(train_data, test_data, order=(5, 1, 0), window_size=60):
+def train_arima_model(train_data, test_data, order=(5, 1, 0), window_size=60, use_ml_approach=True):
     """
-    Train ARIMA model with rolling prediction
+    Train ARIMA model with optional ML approach
     
     Parameters:
     -----------
@@ -17,50 +18,58 @@ def train_arima_model(train_data, test_data, order=(5, 1, 0), window_size=60):
     test_data : pd.Series
         Testing data
     order : tuple
-        ARIMA order (p, d, q)
+        ARIMA order (p, d, q) - used only if use_ml_approach=False
     window_size : int
         Window size to align with LSTM
+    use_ml_approach : bool
+        Whether to use ML-based Auto-ARIMA or traditional ARIMA
         
     Returns:
     --------
     tuple
-        (predictions, errors)
+        (predictions, errors, training_history)
     """
-    history = [x for x in train_data]
-    predictions = []
-    errors = []
-    
-    # Align test data with LSTM (skip first window_size points)
-    test_actual = test_data[window_size:]
-    
-    progress_bar = st.progress(0)
-    status_text = st.empty()
-    
-    for t in range(len(test_actual)):
-        try:
-            # Use last 200 data points for efficiency
-            model = ARIMA(history[-200:], order=order)
-            model_fit = model.fit()
-            pred = model_fit.forecast()[0]
-            predictions.append(pred)
-            history.append(test_actual.iloc[t])
-            
-            # Update progress
-            if (t + 1) % 50 == 0:
-                progress = int((t + 1) / len(test_actual) * 100)
-                progress_bar.progress(progress)
-                status_text.text(f"ARIMA Progress: {t+1}/{len(test_actual)} predictions")
+    if use_ml_approach:
+        st.info("Using ML-based Auto-ARIMA with automated parameter optimization...")
+        return train_ml_arima_model(train_data, test_data, window_size)
+    else:
+        st.info("Using traditional statistical ARIMA...")
+        # Original ARIMA implementation
+        history = [x for x in train_data]
+        predictions = []
+        errors = []
         
-        except Exception as e:
-            errors.append(t)
-            # Fallback: use last value
-            predictions.append(history[-1])
-            history.append(test_actual.iloc[t])
-    
-    progress_bar.empty()
-    status_text.empty()
-    
-    return np.array(predictions), errors
+        # Align test data with LSTM (skip first window_size points)
+        test_actual = test_data[window_size:]
+        
+        progress_bar = st.progress(0)
+        status_text = st.empty()
+        
+        for t in range(len(test_actual)):
+            try:
+                # Use last 200 data points for efficiency
+                model = ARIMA(history[-200:], order=order)
+                model_fit = model.fit()
+                pred = model_fit.forecast()[0]
+                predictions.append(pred)
+                history.append(test_actual.iloc[t])
+                
+                # Update progress
+                if (t + 1) % 50 == 0:
+                    progress = int((t + 1) / len(test_actual) * 100)
+                    progress_bar.progress(progress)
+                    status_text.text(f"ARIMA Progress: {t+1}/{len(test_actual)} predictions")
+            
+            except Exception as e:
+                errors.append(t)
+                # Fallback: use last value
+                predictions.append(history[-1])
+                history.append(test_actual.iloc[t])
+        
+        progress_bar.empty()
+        status_text.empty()
+        
+        return np.array(predictions), errors, None
 
 def build_lstm_model(window_size, units=50, dropout=0.2):
     """

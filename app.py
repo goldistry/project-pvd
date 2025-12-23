@@ -10,6 +10,7 @@ from utils.preprocessing import (calculate_technical_indicators, test_stationari
 from utils.modeling import (train_arima_model, build_lstm_model, build_gru_model,
                              train_deep_learning_model, predict_future_arima)
 from utils.metrics import calculate_metrics, get_best_model, format_metric_display
+from utils.model_cache import get_or_train_models, is_cache_valid
 
 from visualizations.eda_plots import (plot_price_trends, plot_return_distribution,
                                        plot_boxplot_by_decade, plot_correlation_heatmap,
@@ -24,11 +25,11 @@ st.set_page_config(
     layout="wide"
 )
 
-st.title("Analisis Prediksi Stock Market: ARIMA vs LSTM vs GRU")
+st.title("Analisis Prediksi Stock Market: ML-ARIMA vs LSTM vs GRU")
 st.markdown("""
 **Tugas Ujian Akhir - Presentasi dan Visualisasi Data**
 
-Aplikasi ini membandingkan performa **ARIMA (Statistical Model)** dengan **LSTM & GRU (Deep Learning)** 
+Aplikasi ini membandingkan performa **ML-ARIMA (Machine Learning ARIMA)** dengan **LSTM & GRU (Deep Learning)** 
 dalam memprediksi harga penutupan saham berbagai indeks global.
 """)
 
@@ -65,6 +66,19 @@ st.sidebar.subheader("Model Settings")
 train_ratio = st.sidebar.slider("Training Data Ratio (%)", 60, 90, 80, 5) / 100
 window_size = st.sidebar.slider("LSTM/GRU Window Size", 30, 120, 60, 10)
 lstm_epochs = st.sidebar.slider("LSTM/GRU Epochs", 20, 100, 50, 10)
+
+# ARIMA approach selection
+st.sidebar.markdown("**ARIMA Configuration:**")
+use_ml_arima = st.sidebar.checkbox("Use ML-based Auto-ARIMA", value=True, 
+                                   help="Automatically find optimal parameters using grid search")
+
+# Check if models are cached
+if is_cache_valid(selected_index):
+    st.sidebar.success(f"✅ Pre-trained models available for {selected_index}")
+    use_cache = st.sidebar.checkbox("Use cached models (faster)", value=True)
+else:
+    st.sidebar.warning(f"⚠️ No cached models for {selected_index}")
+    use_cache = False
 
 tab1, tab2, tab3, tab4, tab5 = st.tabs([
     "Overview & EDA",
@@ -140,7 +154,7 @@ with tab1:
         - **Volume Spike:** Trading volume tinggi dengan pergerakan harga signifikan mengkonfirmasi kekuatan trend
         
         **Implikasi:**
-        - **Modeling (ARIMA):** Tren kuat ini mengonfirmasi data tidak stasioner, sehingga dalam fungsi predict_future_arima, parameter d=1 pada order=(5, 1, 0) digunakan untuk melakukan differencing agar data menjadi stasioner.
+        - **Modeling (ML-ARIMA):** Tren kuat ini akan dideteksi otomatis oleh ML-ARIMA melalui grid search. Algoritma akan mencoba berbagai kombinasi parameter (p,d,q) dan memilih yang terbaik berdasarkan validation performance, bukan hanya mengandalkan parameter tetap (5,1,0).
         - **Modeling (Deep Learning):** Tren ini mengharuskan normalisasi data (seperti MinMaxScaler) agar model LSTM dan GRU dapat memproses nilai harga yang terus meningkat secara efisien.
         """)
     
@@ -187,7 +201,8 @@ with tab1:
         
         **Implikasi:**
         - **Preprocessing:** Data memiliki karakteristik Fat Tails, artinya kejadian ekstrem (seperti crash) lebih sering terjadi dibandingkan distribusi normal.
-        - **Modeling:** Karakteristik ini memvalidasi penggunaan loss='mean_squared_error' dalam fungsi build_lstm_model dan build_gru_model. MSE sangat sensitif terhadap selisih besar, sehingga memaksa model untuk belajar dari variansi tinggi tersebut.
+        - **Modeling (ML-ARIMA):** Karakteristik non-normal ini akan mempengaruhi proses grid search ML-ARIMA. Algoritma akan mencoba berbagai parameter dan memilih yang paling robust terhadap outliers dan extreme events melalui validation performance.
+        - **Modeling (Deep Learning):** Karakteristik ini memvalidasi penggunaan loss='mean_squared_error' dalam fungsi build_lstm_model dan build_gru_model. MSE sangat sensitif terhadap selisih besar, sehingga memaksa model untuk belajar dari variansi tinggi tersebut.
         """)
     
     st.markdown("---")
@@ -221,7 +236,8 @@ with tab1:
         - **Whisker length:** Range normal variasi harga/return
         
         **Implikasi:**
-        - **Modeling:** Fenomena volatilitas yang tidak konstan ini menjustifikasi penggunaan layer Dropout(0.2) di antara layer LSTM atau GRU. Layer ini berfungsi sebagai regulasi agar model tidak terlalu terpaku (overfit) pada fluktuasi ekstrem di dekade tertentu.
+        - **Modeling (ML-ARIMA):** Fenomena volatilitas yang tidak konstan ini akan dipertimbangkan dalam proses automated parameter selection. ML-ARIMA akan mencoba berbagai kombinasi (p,d,q) dan memilih yang paling adaptif terhadap regime changes melalui validation-based model selection.
+        - **Modeling (Deep Learning):** Fenomena volatilitas yang tidak konstan ini menjustifikasi penggunaan layer Dropout(0.2) di antara layer LSTM atau GRU. Layer ini berfungsi sebagai regulasi agar model tidak terlalu terpaku (overfit) pada fluktuasi ekstrem di dekade tertentu.
         """)
     
     st.markdown("---")
@@ -328,7 +344,7 @@ with tab1:
             - **Market-driven:** Performa bulanan dipengaruhi kondisi pasar spesifik, bukan efek musiman
 
             **Implikasi:**
-            - **Modeling:** Seasonality lemah, tidak perlu SARIMA, fokus pada ARIMA/LSTM/GRU. Ini karena pada seasonality yang lemah, penambahan komponen musiman hanya akan menambah kompleksitas model tanpa meningkatkan akurasi.
+            - **Modeling:** Seasonality lemah, ML-ARIMA akan fokus pada non-seasonal parameters (p,d,q) tanpa komponen SARIMA. Grid search akan mengoptimalkan parameter dasar yang lebih efektif untuk pola non-musiman ini. Penambahan komponen musiman hanya akan menambah kompleksitas tanpa meningkatkan akurasi.
             """)
 
 with tab2:
@@ -426,7 +442,7 @@ with tab2:
         - **Stem plot advantage:** Lebih mirip dengan output statsmodels yang familiar
         
         **Implikasi:**
-        - **Modeling (ARIMA):** ARIMA order yang digunakan itu (5,1,0) berdasarkan PACF cutoff pattern.
+        - **Modeling (ML-ARIMA):** ML-ARIMA akan menggunakan ACF/PACF patterns sebagai starting point untuk grid search, kemudian mengoptimalkan parameter melalui validation performance. Cutoff patterns memberikan hint awal, tapi final selection berdasarkan empirical performance.
         """)
     
     st.markdown("---")
@@ -438,75 +454,87 @@ with tab2:
     - **After differencing:** {result_diff['interpretation']}
     - **Recommended d parameter:** {0 if result_level['is_stationary'] else 1}
     
-    Untuk modeling ARIMA, akan menggunakan **d={0 if result_level['is_stationary'] else 1}** (differencing order).
-    Parameter p dan q ditentukan dari ACF/PACF plots: **(p=5, d=1, q=0)**.
+    Untuk ML-ARIMA, akan menggunakan **d={0 if result_level['is_stationary'] else 1}** sebagai constraint dalam grid search.
+    Grid search akan mengoptimalkan parameter **p dan q** secara otomatis berdasarkan validation performance.
     """)
 
 with tab3:
     st.header("Model Training: ARIMA vs LSTM vs GRU")
     
     if st.button("Train All Models", type="primary"):
-        with st.spinner("Training models... This may take several minutes..."):
-            
-            X_train, y_train, X_test, y_test, scaler, train_size = prepare_lstm_data(
-                data, train_ratio, window_size
-            )
-            train_data_arima, test_data_arima, _ = prepare_arima_data(data, train_ratio)
-            
-            st.session_state['X_train'] = X_train
-            st.session_state['y_train'] = y_train
-            st.session_state['X_test'] = X_test
-            st.session_state['y_test'] = y_test
-            st.session_state['scaler'] = scaler
-            st.session_state['train_size'] = train_size
-            st.session_state['test_data_arima'] = test_data_arima
-            st.session_state['selected_index'] = selected_index
-            
-            st.subheader("Training ARIMA Model...")
-            arima_preds, arima_errors = train_arima_model(
-                train_data_arima, test_data_arima, order=(5, 1, 0), window_size=window_size
-            )
-            st.session_state['arima_preds'] = arima_preds
-            st.success(f"ARIMA trained! Total errors: {len(arima_errors)}")
-            
-            st.subheader("Training LSTM Model...")
-            model_lstm = build_lstm_model(window_size)
-            history_lstm = train_deep_learning_model(
-                model_lstm, X_train, y_train, epochs=lstm_epochs, model_name="LSTM"
-            )
-            lstm_preds_scaled = model_lstm.predict(X_test, verbose=0)
-            lstm_preds = scaler.inverse_transform(lstm_preds_scaled).flatten()
-            
-            st.session_state['model_lstm'] = model_lstm
-            st.session_state['history_lstm'] = history_lstm
-            st.session_state['lstm_preds'] = lstm_preds
-            st.success("LSTM trained!")
-            
-            st.subheader("Training GRU Model...")
-            model_gru = build_gru_model(window_size)
-            history_gru = train_deep_learning_model(
-                model_gru, X_train, y_train, epochs=lstm_epochs, model_name="GRU"
-            )
-            gru_preds_scaled = model_gru.predict(X_test, verbose=0)
-            gru_preds = scaler.inverse_transform(gru_preds_scaled).flatten()
-            
-            st.session_state['model_gru'] = model_gru
-            st.session_state['history_gru'] = history_gru
-            st.session_state['gru_preds'] = gru_preds
-            st.success("GRU trained!")
-            
-            actual_prices = scaler.inverse_transform(y_test.reshape(-1, 1)).flatten()
-            st.session_state['actual_prices'] = actual_prices
-            
-            metrics_arima = calculate_metrics(actual_prices, arima_preds)
-            metrics_lstm = calculate_metrics(actual_prices, lstm_preds)
-            metrics_gru = calculate_metrics(actual_prices, gru_preds)
-            
-            st.session_state['metrics_arima'] = metrics_arima
-            st.session_state['metrics_lstm'] = metrics_lstm
-            st.session_state['metrics_gru'] = metrics_gru
-            
-            st.session_state['trained'] = True
+        if use_cache:
+            with st.spinner("Loading pre-trained models..."):
+                # Load cached results
+                cached_results = get_or_train_models(selected_index, force_retrain=False)
+                
+                # Store in session state
+                for key, value in cached_results.items():
+                    st.session_state[key] = value
+                
+                st.session_state['trained'] = True
+                st.success("Pre-trained models loaded successfully!")
+        else:
+            with st.spinner("Training models... This may take several minutes..."):
+                X_train, y_train, X_test, y_test, scaler, train_size = prepare_lstm_data(
+                    data, train_ratio, window_size
+                )
+                train_data_arima, test_data_arima, _ = prepare_arima_data(data, train_ratio)
+                
+                st.session_state['X_train'] = X_train
+                st.session_state['y_train'] = y_train
+                st.session_state['X_test'] = X_test
+                st.session_state['y_test'] = y_test
+                st.session_state['scaler'] = scaler
+                st.session_state['train_size'] = train_size
+                st.session_state['test_data_arima'] = test_data_arima
+                st.session_state['selected_index'] = selected_index
+                
+                st.subheader("Training ARIMA Model...")
+                arima_preds, arima_errors, _ = train_arima_model(
+                    train_data_arima, test_data_arima, order=(5, 1, 0), 
+                    window_size=window_size, use_ml_approach=use_ml_arima
+                )
+                st.session_state['arima_preds'] = arima_preds
+                st.success(f"ARIMA trained! Total errors: {len(arima_errors)}")
+                
+                st.subheader("Training LSTM Model...")
+                model_lstm = build_lstm_model(window_size)
+                history_lstm = train_deep_learning_model(
+                    model_lstm, X_train, y_train, epochs=lstm_epochs, model_name="LSTM"
+                )
+                lstm_preds_scaled = model_lstm.predict(X_test, verbose=0)
+                lstm_preds = scaler.inverse_transform(lstm_preds_scaled).flatten()
+                
+                st.session_state['model_lstm'] = model_lstm
+                st.session_state['history_lstm'] = history_lstm
+                st.session_state['lstm_preds'] = lstm_preds
+                st.success("LSTM trained!")
+                
+                st.subheader("Training GRU Model...")
+                model_gru = build_gru_model(window_size)
+                history_gru = train_deep_learning_model(
+                    model_gru, X_train, y_train, epochs=lstm_epochs, model_name="GRU"
+                )
+                gru_preds_scaled = model_gru.predict(X_test, verbose=0)
+                gru_preds = scaler.inverse_transform(gru_preds_scaled).flatten()
+                
+                st.session_state['model_gru'] = model_gru
+                st.session_state['history_gru'] = history_gru
+                st.session_state['gru_preds'] = gru_preds
+                st.success("GRU trained!")
+                
+                actual_prices = scaler.inverse_transform(y_test.reshape(-1, 1)).flatten()
+                st.session_state['actual_prices'] = actual_prices
+                
+                metrics_arima = calculate_metrics(actual_prices, arima_preds)
+                metrics_lstm = calculate_metrics(actual_prices, lstm_preds)
+                metrics_gru = calculate_metrics(actual_prices, gru_preds)
+                
+                st.session_state['metrics_arima'] = metrics_arima
+                st.session_state['metrics_lstm'] = metrics_lstm
+                st.session_state['metrics_gru'] = metrics_gru
+                
+                st.session_state['trained'] = True
         
         st.success("All models trained successfully!")
         st.balloons()
