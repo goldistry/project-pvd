@@ -11,7 +11,7 @@ python create_cache.py
 streamlit run app.py
 
 # 3. Di sidebar:
-#    - Pilih index (NYA/IXIC/DJI/GSPC)
+#    - Pilih index (NYA)
 #    - Centang "Use cached models (faster)"
 #    - Klik "Train All Models"
 #    - INSTANT RESULTS

@@ -78,7 +78,7 @@ def plot_future_forecast(data, future_df, model_name="ARIMA", history_days=100):
     fig.add_trace(
         go.Scatter(x=[future_df.index[-1]], y=[final_forecast],
                   mode='markers+text', marker=dict(color=trend_color, size=10),
-                  text=[f'Target: ${final_forecast:,.2f}'],
+                  text=[f'Target'],
                   textposition='middle right', showlegend=False)
     )
     
@@ -113,7 +113,7 @@ def plot_forecast_breakdown(future_df):
     fig = make_subplots(
         rows=2, cols=1,
         subplot_titles=['Daily Forecast Values', 'Daily Price Change Forecast'],
-        vertical_spacing=0.1
+        vertical_spacing=0.25
     )
     
     # Daily forecast values

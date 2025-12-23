@@ -199,43 +199,54 @@ def train_deep_learning_model(model, X_train, y_train, epochs=50, batch_size=32,
 
 def predict_future_arima(data, steps=60, order=(5, 1, 0)):
     """
-    Predict future values using ARIMA
+    Predict future values using ARIMA based on RECENT trends (Momentum).
     
     Parameters:
     -----------
     data : pd.Series or pd.DataFrame
         Full historical data
     steps : int
-        Number of steps to forecast
+        Number of steps to forecast (Default: 60)
     order : tuple
-        ARIMA order (p, d, q)
+        ARIMA order (p, d, q) (Default: 5,1,0)
         
     Returns:
     --------
     pd.DataFrame
         DataFrame with Forecast, Lower_Bound, Upper_Bound columns
     """
-    # Extract Close column if DataFrame, ensure it's a Series
+    # 1. Extract Close column
     if isinstance(data, pd.DataFrame):
         series = data['Close']
     else:
         series = data
     
-    # Ensure numeric data
+    # 2. Ensure numeric data & Handle Missing Values
     series = pd.to_numeric(series, errors='coerce').dropna()
     
-    model = ARIMA(series, order=order)
+    # 3. SETTING MOMENTUM 
+    lookback_days = 1250
+    
+    if len(series) > lookback_days:
+        train_series = series.iloc[-lookback_days:]
+    else:
+        train_series = series
+        
+    # 4. Fit Model dengan Trend
+    # trend='t' wajib ada agar garis prediksi punya kemiringan (tidak lurus rata)
+    model = ARIMA(train_series, order=order, trend='t')
     model_fit = model.fit()
     
+    # 5. Forecasting
     forecast_result = model_fit.get_forecast(steps=steps)
     forecast_values = forecast_result.predicted_mean
     conf_int = forecast_result.conf_int()
     
-    # Create future dates
+    # 6. Create future dates (Business Days / Hari Kerja saja)
     last_date = series.index[-1]
-    future_dates = pd.date_range(start=last_date + pd.Timedelta(days=1), periods=steps, freq='D')
+    future_dates = pd.date_range(start=last_date + pd.Timedelta(days=1), periods=steps, freq='B')
     
-    # Create DataFrame
+    # 7. Create DataFrame Output
     forecast_df = pd.DataFrame({
         'Forecast': forecast_values.values,
         'Lower_Bound': conf_int.iloc[:, 0].values,

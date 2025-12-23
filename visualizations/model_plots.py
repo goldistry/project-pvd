@@ -2,61 +2,64 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import numpy as np
 
-def plot_training_history(history, model_name):
+def plot_training_history(history, model_name, y_range=None):
     """
-    Plot training history untuk deep learning models - satu row per model
+    Plot training history dengan standarisasi skala Y untuk perbandingan fair
     """
-    # Import color palette
     COLOR_PALETTE = {
-        'primary': '#2E86AB',
-        'accent': '#F18F01',
-        'secondary': '#A23B72'
+        'primary': '#2E86AB', # Biru Training
+        'accent': '#F18F01'   # Oranye Validation
     }
     
     fig = make_subplots(
         rows=1, cols=2,
-        subplot_titles=[f'{model_name} Training History', f'{model_name} Training History (Log Scale)'],
-        horizontal_spacing=0.1
+        subplot_titles=[f'{model_name} Loss (Linear)', f'{model_name} Loss (Log Scale)'],
+        horizontal_spacing=0.12
     )
     
-    # Normal scale
-    fig.add_trace(
-        go.Scatter(x=list(range(len(history.history['loss']))), 
-                  y=history.history['loss'], name='Training Loss',
-                  line=dict(color=COLOR_PALETTE['primary'], width=2.5)),
-        row=1, col=1
-    )
-    fig.add_trace(
-        go.Scatter(x=list(range(len(history.history['val_loss']))), 
-                  y=history.history['val_loss'], name='Validation Loss',
-                  line=dict(color=COLOR_PALETTE['accent'], width=2.5)),
-        row=1, col=1
-    )
+    # Ambil data
+    h_data = history.history if hasattr(history, 'history') else history
+    epochs = list(range(1, len(h_data['loss']) + 1))
     
-    # Log scale
-    fig.add_trace(
-        go.Scatter(x=list(range(len(history.history['loss']))), 
-                  y=history.history['loss'], name='Training Loss',
-                  line=dict(color=COLOR_PALETTE['primary'], width=2.5), showlegend=False),
-        row=1, col=2
-    )
-    fig.add_trace(
-        go.Scatter(x=list(range(len(history.history['val_loss']))), 
-                  y=history.history['val_loss'], name='Validation Loss',
-                  line=dict(color=COLOR_PALETTE['accent'], width=2.5), showlegend=False),
-        row=1, col=2
-    )
+    # Tambahkan traces ke kedua kolom
+    for col in [1, 2]:
+        show_leg = True if col == 1 else False
+        # Training Loss
+        fig.add_trace(
+            go.Scatter(x=epochs, y=h_data['loss'], name='Train',
+                      line=dict(color=COLOR_PALETTE['primary'], width=2.5),
+                      mode='lines+markers', marker=dict(size=4), showlegend=show_leg),
+            row=1, col=col
+        )
+        # Validation Loss
+        fig.add_trace(
+            go.Scatter(x=epochs, y=h_data['val_loss'], name='Val',
+                      line=dict(color=COLOR_PALETTE['accent'], width=2.5),
+                      mode='lines+markers', marker=dict(size=4), showlegend=show_leg),
+            row=1, col=col
+        )
     
+    # Update Axes Labels
     fig.update_xaxes(title_text="Epoch", row=1, col=1)
     fig.update_xaxes(title_text="Epoch", row=1, col=2)
     fig.update_yaxes(title_text="Loss (MSE)", row=1, col=1)
     fig.update_yaxes(title_text="Loss (MSE)", type="log", row=1, col=2)
-    
+
+    # STANDARISASI SKALA (FAIR COMPARISON)
+    if y_range:
+        # Terapkan range ke skala linier
+        fig.update_yaxes(range=y_range, autorange=False, row=1, col=1)
+        
+        # Terapkan range ke skala log (Plotly butuh nilai log10 untuk range)
+        log_range = [np.log10(y_range[0]) if y_range[0] > 0 else -5, np.log10(y_range[1])]
+        fig.update_yaxes(range=log_range, autorange=False, row=1, col=2)
+
     fig.update_layout(
-        height=350,  # Reduced height for individual plots
+        height=380,
         plot_bgcolor='white',
         paper_bgcolor='white',
-        margin=dict(t=60, b=40, l=40, r=40)
+        margin=dict(t=60, b=40, l=60, r=40),
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
     )
     
     return fig
@@ -96,18 +99,17 @@ def plot_predictions_comparison(actual, predictions_dict, zoom=None):
         
         # Actual data
         fig.add_trace(
-            go.Scatter(x=list(range(len(actual))), y=actual, name='Actual',
-                      line=dict(color='#34495E', width=2), showlegend=True,
-                      legendgroup=f'group{row}', legendgrouptitle_text=f'{model_name} vs Actual'),
+            go.Scatter(x=list(range(len(actual))), y=actual, name=f'Actual_{row}',
+                      line=dict(color='#34495E', width=2), showlegend=True),
             row=row, col=1
         )
         
         # Model prediction
         fig.add_trace(
             go.Scatter(x=list(range(len(preds))), y=preds, 
-                      name=f'{model_name}',
+                      name=f'{model_name}_{row}',
                       line=dict(color=colors.get(model_name, '#E74C3C'), width=2),
-                      showlegend=True, legendgroup=f'group{row}'),
+                      showlegend=True),
             row=row, col=1
         )
     

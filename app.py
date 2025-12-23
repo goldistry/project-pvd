@@ -43,7 +43,7 @@ st.markdown("### Perbandingan Model: ML-ARIMA vs LSTM vs GRU")
 st.info("""
 **Tugas Ujian Akhir Semester - Mata Kuliah Presentasi dan Visualisasi Data**
 
-Fokus utama proyek ini adalah membandingkan performa metode **Machine Learning ARIMA** dengan **Deep Learning (LSTM & GRU)** untuk memprediksi tren harga saham global selama 60 hari ke depan.
+Fokus utama proyek ini adalah membandingkan performa metode **Machine Learning ARIMA** dengan **Deep Learning (LSTM & GRU)** untuk memprediksi tren harga saham global selama 60 hari ke depan (Khususnya Analisis berfokus pada indeks saham NYA).
 """)
 
 # --- BAGIAN 1: OVERVIEW & TUJUAN ---
@@ -174,8 +174,6 @@ df = load_data()
 if df.empty:
     st.stop()
 
-# --- SIDEBAR SETTINGS ---
-st.sidebar.header("Pengaturan Model")
 available_indices = sorted(df['Index'].unique())
 selected_index = st.sidebar.selectbox(
     "Pilih Stock Index:",
@@ -398,6 +396,8 @@ with tab1:
         **Aesthetics & Mapping:**
         - **Rows & Columns (Position):** Feature names (Categorical)
         - **Cell Color (Hue):** Correlation coefficient (Continuous: -1 to +1)
+        
+        **Penjelasan Tambahan Plot:**
         - **Text Annotations:** Exact correlation values untuk precision
         - **Cell Size:** Uniform untuk fair comparison
         
@@ -414,7 +414,7 @@ with tab1:
         - **Yellow/Light colors:** Volume memiliki korelasi independen dengan price features
 
         **Implikasi:**
-        - **Implikasi modeling:** Cukup gunakan Close dan Volume untuk menghindari multicollinearity
+        - **Implikasi modeling:** Cukup gunakan Close (sudah mewakili Open, High, dan beberapa fitur lainnya) untuk menghindari multicollinearity
         """)
     
     st.markdown("---")
@@ -434,6 +434,8 @@ with tab1:
         **Aesthetics & Mapping:**
         - **X-axis (Position):** Date (Temporal/Continuous)
         - **Y-axis (Position):** Volatility percentage (Continuous)
+        
+        **Penjelasan Tambahan Plot:**
         - **Line (Shape):** Continuous line menunjukkan trend volatilitas
         - **Fill area:** Subtle background fill untuk visual emphasis
         - **Line width:** Cukup tebal (2.5px) untuk visibility
@@ -470,6 +472,8 @@ with tab1:
             - **X-axis (Position):** Month (1-12, Discrete/Ordinal)
             - **Y-axis (Position):** Year (Continuous/Temporal)
             - **Cell Color (Hue):** Average daily return (Continuous)
+            
+            **Penjelasan Tambahan Plot:**
             - **Color intensity:** Proportional to return magnitude
             
             **Pemilihan Warna (Continuous Diverging):**
@@ -605,7 +609,7 @@ with tab3:
     
     if st.button("Train All Models", type="primary"):
         if use_cache:
-            with st.spinner("Loading pre-trained models..."):
+            with st.spinner("Loading pre-trained models (only NYA)..."):
                 # Load cached results
                 cached_results = get_or_train_models(selected_index, force_retrain=False)
                 
@@ -716,16 +720,25 @@ with tab3:
             st.metric("Directional Accuracy", format_metric_display(metrics_gru['DA'], 'DA'))
         
         st.markdown("---")
-        st.subheader("Training History")
-        
-        # LSTM Training History - Full width
+        st.subheader("Training History Comparison")
+
+        # 1. Kumpulkan semua nilai loss dari kedua model untuk mencari batas skala global
+        h_lstm = st.session_state['history_lstm'].history
+        h_gru = st.session_state['history_gru'].history
+
+        all_values = h_lstm['loss'] + h_lstm['val_loss'] + h_gru['loss'] + h_gru['val_loss']
+        global_min = min(all_values) * 0.9  # Margin bawah 10%
+        global_max = max(all_values) * 1.1  # Margin atas 10%
+        unified_y_range = [global_min, global_max]
+
+        # 2. Tampilkan LSTM
         st.markdown("#### LSTM Training History")
-        fig_lstm = plot_training_history(st.session_state['history_lstm'], "LSTM")
+        fig_lstm = plot_training_history(h_lstm, "LSTM", y_range=unified_y_range)
         st.plotly_chart(fig_lstm, use_container_width=True)
-        
-        # GRU Training History - Full width  
+
+        # 3. Tampilkan GRU
         st.markdown("#### GRU Training History")
-        fig_gru = plot_training_history(st.session_state['history_gru'], "GRU")
+        fig_gru = plot_training_history(h_gru, "GRU", y_range=unified_y_range)
         st.plotly_chart(fig_gru, use_container_width=True)
         
         with st.expander("Penjelasan Visualisasi: Training History"):
@@ -738,6 +751,8 @@ with tab3:
             **Aesthetics & Mapping:**
             - **X-axis (Position):** Epoch number (Discrete/Sequential)
             - **Y-axis (Position):** Loss value menggunakan metrik MSE (Continuous)
+            
+            **Penjelasan Tambahan Plot:**
             - **Line (Shape):** Continuous lines menunjukkan learning progression
             - **Dual subplot:** Normal scale vs Log scale untuk different perspectives
             
@@ -752,12 +767,14 @@ with tab3:
             - **Underfitting:** Kedua lines tinggi dan flat, tidak ada improvement
             - **Optimal stopping:** Titik tepat sebelum validation loss mulai naik kembali; di sinilah model mencapai performa terbaiknya.
             - **Log scale benefit:** Melihat improvement detail pada loss values yang kecil
-            
-             **Analisis Hasil Plot:**
-            - **LSTM Training History:** Training loss (biru) turun tajam dan stabil di angka rendah. Namun, validation loss (oranye) menunjukkan volatilitas tinggi dengan lonjakan tajam (spikes) di beberapa epoch awal sebelum akhirnya turun kembali. Hal ini mengindikasikan sensitivitas model LSTM terhadap urutan data tertentu pada set validasi.
-            - **GRU Training History:** Menunjukkan pola yang lebih stabil dibandingkan LSTM. Garis training dan validation turun lebih sinkron, meskipun masih terdapat fluktuasi kecil pada validation loss. Hal ini menjelaskan mengapa dalam hasil metrik Anda, GRU cenderung lebih unggul dalam stabilitas dibandingkan LSTM untuk dataset ini.
             """)
-
+            if selected_index == 'NYA':
+                 st.markdown("""
+                **Analisis Hasil Plot:**
+                  - **LSTM Training History:** Training loss (biru) turun tajam dan stabil di angka rendah. Namun, validation loss (oranye) menunjukkan volatilitas tinggi dengan lonjakan tajam (spikes) di beberapa epoch awal sebelum akhirnya turun kembali. Hal ini mengindikasikan sensitivitas model LSTM terhadap urutan data tertentu pada set validasi.
+                  - **GRU Training History:** Menunjukkan pola yang lebih stabil dibandingkan LSTM. Garis training dan validation turun lebih sinkron, meskipun masih terdapat fluktuasi kecil pada validation loss. Hal ini menjelaskan mengapa dalam hasil metrik Anda, GRU cenderung lebih unggul dalam stabilitas dibandingkan LSTM untuk dataset ini.
+                  """)
+                 
 with tab4:
     st.header("Model Comparison & Analysis")
     
@@ -975,7 +992,7 @@ with tab5:
         """)
         
         if st.button("Generate 60-Day Forecast", type="primary"):
-            with st.spinner("Generating forecast..."):
+            with st.spinner("Generating forecast based on the last 500 days ..."):
                 
                 forecast_df = predict_future_arima(data, steps=60, order=(5, 1, 0))
                 st.session_state['forecast_df'] = forecast_df
@@ -1027,7 +1044,13 @@ with tab5:
                 - **Target point:** Final forecast value dengan annotation
                 - **Percentage change:** Quantified expected return
                 """)
-            
+            if selected_index == 'NYA':
+              st.markdown("""
+              **Interpretasi Plot (NYA):**
+               - **Trend direction:** Secara visual, garis proyeksi berwarna hijau menunjukkan kemiringan positif (upward slope), yang mengindikasikan optimisme pasar berdasarkan pola historis jangka panjang NYA Index.
+               - **Confidence bands:** Semakin jauh proyeksi ke masa depan (mendekati hari ke-60), area hijau semakin melebar secara signifikan. Hal ini menginterpretasikan bahwa ketidakpastian (uncertainty) meningkat seiring bertambahnya waktu prediksi.
+               - Target harga akhir yang diprediksi pada hari ke-60 adalah sekitar 16.555,66 dari harga penutupan terakhir sebesar 16.875,70.
+              """)
             st.markdown("---")
             
             st.subheader("2. Forecast Breakdown")

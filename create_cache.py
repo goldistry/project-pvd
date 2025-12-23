@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """
 Script untuk pre-training dan caching semua model
-Jalankan sekali untuk membuat cache yang bisa digunakan dosen
 """
 
 import sys
@@ -20,7 +19,7 @@ def main():
     print()
     
     # Indeks yang akan di-cache (hanya NYA untuk testing)
-    indices = ['NYA']
+    indices = ['GDAXI']
     
     for i, index in enumerate(indices, 1):
         print(f"\n[{i}/{len(indices)}] Training models untuk {index}...")
