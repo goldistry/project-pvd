@@ -138,6 +138,10 @@ with tab1:
         - **Golden Cross:** MA-50 memotong MA-200 ke atas = bullish signal
         - **Death Cross:** MA-50 memotong MA-200 ke bawah = bearish signal
         - **Volume Spike:** Trading volume tinggi dengan pergerakan harga signifikan mengkonfirmasi kekuatan trend
+        
+        **Implikasi:**
+        - **Modeling (ARIMA):** Tren kuat ini mengonfirmasi data tidak stasioner, sehingga dalam fungsi predict_future_arima, parameter d=1 pada order=(5, 1, 0) digunakan untuk melakukan differencing agar data menjadi stasioner.
+        - **Modeling (Deep Learning):** Tren ini mengharuskan normalisasi data (seperti MinMaxScaler) agar model LSTM dan GRU dapat memproses nilai harga yang terus meningkat secara efisien.
         """)
     
     st.markdown("---")
@@ -178,8 +182,12 @@ with tab1:
         - **Mean Return positif:** Index cenderung naik secara rata-rata
         - **Skewness negatif:** Lebih banyak extreme downside events (crash)
         - **High Kurtosis (>3):** Fat tails menunjukkan extreme events lebih sering terjadi
-        - **Implikasi:** Data memiliki karakteristik non-normal dengan tail risk
+        - **Arti:** Data memiliki karakteristik non-normal dengan tail risk
         - **KDE advantage:** Smooth curve memudahkan melihat distribusi shape
+        
+        **Implikasi:**
+        - **Preprocessing:** Data memiliki karakteristik Fat Tails, artinya kejadian ekstrem (seperti crash) lebih sering terjadi dibandingkan distribusi normal.
+        - **Modeling:** Karakteristik ini memvalidasi penggunaan loss='mean_squared_error' dalam fungsi build_lstm_model dan build_gru_model. MSE sangat sensitif terhadap selisih besar, sehingga memaksa model untuk belajar dari variansi tinggi tersebut.
         """)
     
     st.markdown("---")
@@ -211,6 +219,9 @@ with tab1:
         - **Outliers:** Extreme events atau market crashes/booms
         - **Median position:** Trend central tendency per dekade
         - **Whisker length:** Range normal variasi harga/return
+        
+        **Implikasi:**
+        - **Modeling:** Fenomena volatilitas yang tidak konstan ini menjustifikasi penggunaan layer Dropout(0.2) di antara layer LSTM atau GRU. Layer ini berfungsi sebagai regulasi agar model tidak terlalu terpaku (overfit) pada fluktuasi ekstrem di dekade tertentu.
         """)
     
     st.markdown("---")
@@ -243,6 +254,8 @@ with tab1:
         **Interpretasi:**
         - **Dark Green (>0.9):** Open-High-Low-Close memiliki korelasi sangat tinggi - EXPECTED
         - **Yellow/Light colors:** Volume memiliki korelasi independen dengan price features
+
+        **Implikasi:**
         - **Implikasi modeling:** Cukup gunakan Close dan Volume untuk menghindari multicollinearity
         """)
     
@@ -313,7 +326,9 @@ with tab1:
             - **High color variation:** Tidak ditemukan pola musiman yang konsisten
             - **Random pattern:** Warna bervariasi tinggi antar tahun untuk bulan yang sama
             - **Market-driven:** Performa bulanan dipengaruhi kondisi pasar spesifik, bukan efek musiman
-            - **Modeling conclusion:** Seasonality lemah, tidak perlu SARIMA, fokus pada ARIMA/LSTM/GRU
+
+            **Implikasi:**
+            - **Modeling:** Seasonality lemah, tidak perlu SARIMA, fokus pada ARIMA/LSTM/GRU. Ini karena pada seasonality yang lemah, penambahan komponen musiman hanya akan menambah kompleksitas model tanpa meningkatkan akurasi.
             """)
 
 with tab2:
@@ -408,8 +423,10 @@ with tab2:
         - **ACF significant lags:** Menentukan parameter **q** (MA order) untuk ARIMA
         - **PACF significant lags:** Menentukan parameter **p** (AR order) untuk ARIMA
         - **Stems outside confidence bands:** Statistically significant correlations
-        - **Recommended ARIMA order:** (5,1,0) berdasarkan PACF cutoff pattern
         - **Stem plot advantage:** Lebih mirip dengan output statsmodels yang familiar
+        
+        **Implikasi:**
+        - **Modeling (ARIMA):** ARIMA order yang digunakan itu (5,1,0) berdasarkan PACF cutoff pattern.
         """)
     
     st.markdown("---")
