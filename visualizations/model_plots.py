@@ -4,7 +4,7 @@ import numpy as np
 
 def plot_training_history(history, model_name):
     """
-    Plot training history untuk deep learning models
+    Plot training history untuk deep learning models - satu row per model
     """
     # Import color palette
     COLOR_PALETTE = {
@@ -15,7 +15,8 @@ def plot_training_history(history, model_name):
     
     fig = make_subplots(
         rows=1, cols=2,
-        subplot_titles=[f'{model_name} Training History', f'{model_name} Training History (Log Scale)']
+        subplot_titles=[f'{model_name} Training History', f'{model_name} Training History (Log Scale)'],
+        horizontal_spacing=0.1
     )
     
     # Normal scale
@@ -52,9 +53,10 @@ def plot_training_history(history, model_name):
     fig.update_yaxes(title_text="Loss (MSE)", type="log", row=1, col=2)
     
     fig.update_layout(
-        height=400,
+        height=350,  # Reduced height for individual plots
         plot_bgcolor='white',
-        paper_bgcolor='white'
+        paper_bgcolor='white',
+        margin=dict(t=60, b=40, l=40, r=40)
     )
     
     return fig

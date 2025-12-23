@@ -20,27 +20,162 @@ from visualizations.model_plots import (plot_training_history, plot_predictions_
 from visualizations.prediction_plots import (plot_future_forecast, plot_forecast_breakdown,
                                               plot_forecast_statistics)
 
+# --- KONFIGURASI HALAMAN ---
 st.set_page_config(
-    page_title="Stock Market Analysis - ARIMA vs LSTM vs GRU",
-    layout="wide"
+    page_title="Stock Market Prediction - Final Project",
+    layout="wide",
+    initial_sidebar_state="expanded"
 )
 
-st.title("Analisis Prediksi Stock Market: ML-ARIMA vs LSTM vs GRU")
-st.markdown("""
-**Tugas Ujian Akhir - Presentasi dan Visualisasi Data**
+# --- SIDEBAR ---
+st.sidebar.title("Anggota Kelompok:")
+st.sidebar.text("1. Aloysia Jennifer Harijadi (C14230191)")
+st.sidebar.text("2. Felicia Audrey (C14230207)")
+st.sidebar.text("3. Jessica Chandra (C14230250)")
+st.sidebar.markdown("---")
+st.sidebar.info("Pilih Tab di halaman utama untuk berpindah antara Overview, EDA, dan Prediksi.")
 
-Aplikasi ini membandingkan performa **ML-ARIMA (Machine Learning ARIMA)** dengan **LSTM & GRU (Deep Learning)** 
-dalam memprediksi harga penutupan saham berbagai indeks global.
+# --- HEADER & JUDUL ---
+st.title("Analisis & Prediksi Pasar Saham Global")
+st.markdown("### Perbandingan Model: ML-ARIMA vs LSTM vs GRU")
+
+# --- INFORMASI PROYEK ---
+st.info("""
+**Tugas Ujian Akhir Semester - Mata Kuliah Presentasi dan Visualisasi Data**
+
+Fokus utama proyek ini adalah membandingkan performa metode **Machine Learning ARIMA** dengan **Deep Learning (LSTM & GRU)** untuk memprediksi tren harga saham global selama 60 hari ke depan.
 """)
 
-st.sidebar.header("Pengaturan")
-st.sidebar.markdown("---")
+# --- BAGIAN 1: OVERVIEW & TUJUAN ---
+col1, col2 = st.columns([2, 1])
+with col1:
+    st.subheader("Latar Belakang & Tujuan")
+    st.write("""
+    Pasar saham adalah sistem yang dinamis, non-linear, dan penuh dengan *noise*. Proyek ini memanfaatkan data historis jangka panjang untuk membangun model prediksi yang andal.
+    
+    **Tujuan Utama:**
+    1.  **Forecasting:** Memprediksi harga penutupan (*Close Price*) untuk **60 hari ke depan**.
+    2.  **Komparasi Model:** Mengevaluasi akurasi antara ML-ARIMA vs LSTM & GRU (Neural Networks).
+    3.  **Visualisasi:** Menyajikan dashboard interaktif untuk memantau pergerakan harga saham global dari AS, Asia, hingga Eropa.
+    """)
 
+with col2:
+    st.subheader("Ringkasan Data")
+    st.success("""
+    * **Sumber:** [Kaggle - Stock Exchange Data](https://www.kaggle.com/datasets/mattiuzc/stock-exchange-data)
+    * **Periode:** 1965 - 2021 (Bervariasi per indeks)
+    * **Frekuensi:** Harian (Daily)
+    * **Total Baris:** > 100,000 data points
+    """)
+
+# TAMBAHAN: DETAIL DATASET
+st.markdown("---")
+st.subheader("Penjelasan Dataset (Cakupan & Variabel)")
+
+# Menggunakan Expander agar halaman tidak terlalu panjang tapi detail tetap ada
+with st.expander("Lihat Detail Indeks Saham & Penjelasan Variabel", expanded=False):
+    
+    tab_indeks, tab_variabel = st.tabs(["Cakupan Indeks Global", "Penjelasan Variabel (Fitur)"])
+    
+    with tab_indeks:
+        st.markdown("""
+        Dataset ini mencakup **15 Indeks Saham Utama** yang merepresentasikan kekuatan ekonomi dari berbagai benua. 
+        Data ini memungkinkan kita melihat korelasi ekonomi global.
+        """)
+        
+        # Membuat Dataframe statis untuk tampilan rapi
+        data_indeks = {
+            "Region": ["United States", "United States", "United States", "Hong Kong", "Japan", "China", "China", "Europe", "Germany", "Switzerland", "Canada", "India", "Korea", "Taiwan", "South Africa"],
+            "Exchange": ["New York Stock Exchange", "NASDAQ", "S&P 500", "Hong Kong Stock Exchange", "Tokyo Stock Exchange", "Shanghai Stock Exchange", "Shenzhen Stock Exchange", "Euronext", "Frankfurt Stock Exchange", "SIX Swiss Exchange", "Toronto Stock Exchange", "NSE India", "Korea Exchange", "Taiwan Stock Exchange", "Johannesburg Stock Exchange"],
+            "Index Code": ["NYA", "IXIC", "GSPC", "HSI", "N225", "000001.SS", "399001.SZ", "N100", "GDAXI", "SSMI", "GSPTSE", "NSEI", "KS11", "TWII", "J203.JO"],
+            "Currency": ["USD", "USD", "USD", "HKD", "JPY", "CNY", "CNY", "EUR", "EUR", "CHF", "CAD", "INR", "KRW", "TWD", "ZAR"]
+        }
+        df_display = pd.DataFrame(data_indeks)
+        st.dataframe(df_display, use_container_width=True, hide_index=True)
+    
+    with tab_variabel:
+        st.markdown("Setiap baris data merepresentasikan aktivitas perdagangan satu hari dengan atribut berikut:")
+        
+        col_var1, col_var2 = st.columns(2)
+        with col_var1:
+            st.markdown("""
+            * **Date:** Tanggal pencatatan transaksi saham.
+            * **Open:** Harga pembukaan saham pada hari tersebut.
+            * **High:** Harga tertinggi yang dicapai saham pada hari tersebut.
+            * **Low:** Harga terendah yang dicapai saham pada hari tersebut.
+            """)
+        with col_var2:
+            st.markdown("""
+            * **Close:** Harga penutupan saham (Harga terakhir diperdagangkan). **Ini adalah target prediksi model.**
+            * **Adj Close:** Harga penutupan yang disesuaikan (*Adjusted*) setelah memperhitungkan dividen atau *stock split*.
+            * **Volume:** Jumlah lembar saham yang diperdagangkan pada hari tersebut.
+            """)
+        
+        st.info("**Catatan:** Dataset ini menggunakan versi *processed* yang sudah menyediakan kolom **'CloseUSD'**. Kolom ini menstandarisasi seluruh mata uang ke dalam US Dollar sehingga perbandingan harga antar indeks dapat dilakukan secara adil.")
+
+st.markdown("---")
+
+# --- BAGIAN 2: PENJELASAN MODEL (Card Style) ---
+st.subheader("Metodologi Modeling")
+st.write("Kami menggunakan tiga pendekatan berbeda untuk menangkap pola *Time Series*:")
+
+model_col1, model_col2, model_col3 = st.columns(3)
+
+with model_col1:
+    st.markdown("### 1. ML-ARIMA")
+    st.caption("*Machine Learning Approach*")
+    st.markdown("""
+    **Auto Regressive Integrated Moving Average dengan ML optimization.**
+    * **Cara Kerja:** Otomatis mencari parameter (p,d,q) terbaik menggunakan validation-based selection.
+    * **Kelebihan:** Kombinasi interpretabilitas statistik dengan automated parameter tuning.
+    """)
+
+with model_col2:
+    st.markdown("### 2. LSTM")
+    st.caption("*Deep Learning (RNN)*")
+    st.markdown("""
+    **Long Short-Term Memory.**
+    * **Cara Kerja:** Menggunakan *memory cells* dan 3 *gates* (input, output, forget).
+    * **Kelebihan:** Sangat baik menangkap pola jangka panjang dan non-linear.
+    """)
+
+with model_col3:
+    st.markdown("### 3. GRU")
+    st.caption("*Deep Learning (RNN)*")
+    st.markdown("""
+    **Gated Recurrent Unit.**
+    * **Cara Kerja:** Versi simplifikasi LSTM dengan hanya 2 *gates* (update, reset).
+    * **Kelebihan:** Komputasi lebih cepat dari LSTM dengan akurasi yang kompetitif.
+    """)
+
+st.markdown("---")
+
+# --- BAGIAN 3: ALUR ANALISIS ---
+with st.expander("Lihat Detail Tahapan Analisis (Workflow)"):
+    st.markdown("""
+    Analisis dilakukan dalam 2 tahapan utama:
+    1.  **Eksplorasi & Validasi Model (Notebook):** Berfokus pada analisis mendalam menggunakan satu indeks utama sebagai studi kasus.
+        * Melakukan *Hyperparameter Tuning* dan *Data Splitting* (Train/Test) untuk validasi akurasi.
+    2.  **Implementasi & Skalabilitas (Streamlit):** Menerapkan model terbaik ke dalam aplikasi web.
+        * Memungkinkan pengguna memilih indeks saham lain (seperti IXIC, HSI, N225) dan melihat hasil forecasting secara real-time.
+        
+    **Data Split Strategy:**
+    - **Training:** ~50 tahun data historis (semua data kecuali 5 tahun terakhir)
+    - **Testing:** 5 tahun terakhir untuk evaluasi model
+    - **Window Size:** 60 hari lookback untuk LSTM/GRU
+    - **Epochs:** 50 untuk balanced training
+    """)
+
+st.markdown("---")
+
+# Load data dan setup
 df = load_data()
 
 if df.empty:
     st.stop()
 
+# --- SIDEBAR SETTINGS ---
+st.sidebar.header("Pengaturan Model")
 available_indices = sorted(df['Index'].unique())
 selected_index = st.sidebar.selectbox(
     "Pilih Stock Index:",
@@ -63,9 +198,16 @@ st.sidebar.info(f"""
 
 st.sidebar.markdown("---")
 st.sidebar.subheader("Model Settings")
-train_ratio = st.sidebar.slider("Training Data Ratio (%)", 60, 90, 80, 5) / 100
-window_size = st.sidebar.slider("LSTM/GRU Window Size", 30, 120, 60, 10)
-lstm_epochs = st.sidebar.slider("LSTM/GRU Epochs", 20, 100, 50, 10)
+test_years = st.sidebar.slider("Test Period (Years)", 3, 10, 5, 1)
+st.sidebar.info(f"""
+**Data Split:**
+- Training: ~{(data.index.max() - data.index.min()).days / 365.25 - test_years:.1f} years
+- Testing: {test_years} years
+""")
+
+# Fixed parameters (no longer user-configurable)
+window_size = 60  # Optimal for financial time series
+lstm_epochs = 50  # Balanced training
 
 # ARIMA approach selection
 st.sidebar.markdown("**ARIMA Configuration:**")
@@ -74,10 +216,10 @@ use_ml_arima = st.sidebar.checkbox("Use ML-based Auto-ARIMA", value=True,
 
 # Check if models are cached
 if is_cache_valid(selected_index):
-    st.sidebar.success(f"✅ Pre-trained models available for {selected_index}")
+    st.sidebar.success(f"Pre-trained models available for {selected_index}")
     use_cache = st.sidebar.checkbox("Use cached models (faster)", value=True)
 else:
-    st.sidebar.warning(f"⚠️ No cached models for {selected_index}")
+    st.sidebar.warning(f"No cached models for {selected_index}")
     use_cache = False
 
 tab1, tab2, tab3, tab4, tab5 = st.tabs([
@@ -476,9 +618,9 @@ with tab3:
         else:
             with st.spinner("Training models... This may take several minutes..."):
                 X_train, y_train, X_test, y_test, scaler, train_size = prepare_lstm_data(
-                    data, train_ratio, window_size
+                    data, window_size, test_years
                 )
-                train_data_arima, test_data_arima, _ = prepare_arima_data(data, train_ratio)
+                train_data_arima, test_data_arima, _ = prepare_arima_data(data, test_years)
                 
                 st.session_state['X_train'] = X_train
                 st.session_state['y_train'] = y_train
@@ -576,43 +718,44 @@ with tab3:
         st.markdown("---")
         st.subheader("Training History")
         
-        col1, col2 = st.columns(2)
-        with col1:
-            st.markdown("#### LSTM Training")
-            fig = plot_training_history(st.session_state['history_lstm'], "LSTM")
-            st.plotly_chart(fig, use_container_width=True)
+        # LSTM Training History - Full width
+        st.markdown("#### LSTM Training History")
+        fig_lstm = plot_training_history(st.session_state['history_lstm'], "LSTM")
+        st.plotly_chart(fig_lstm, use_container_width=True)
         
-        with col2:
-            st.markdown("#### GRU Training")
-            fig = plot_training_history(st.session_state['history_gru'], "GRU")
-            st.plotly_chart(fig, use_container_width=True)
+        # GRU Training History - Full width  
+        st.markdown("#### GRU Training History")
+        fig_gru = plot_training_history(st.session_state['history_gru'], "GRU")
+        st.plotly_chart(fig_gru, use_container_width=True)
         
         with st.expander("Penjelasan Visualisasi: Training History"):
             st.markdown("""
             **Mengapa jenis plot ini?**
             - Dual-scale visualization untuk melihat training progress dalam normal dan log scale
-            - Line plot menunjukkan trend convergence over epochs
-            - Log scale memudahkan melihat perubahan ketika loss sudah kecil
+            - Line plot menunjukkan konvergensi model selama jumlah epoch tertentu.
+            - Log scale memudahkan melihat perubahan kecil pada nilai loss ketika angkanya sudah sangat rendah, yang sulit terlihat pada skala normal.
             
             **Aesthetics & Mapping:**
             - **X-axis (Position):** Epoch number (Discrete/Sequential)
-            - **Y-axis (Position):** Loss value (Continuous, MSE)
+            - **Y-axis (Position):** Loss value menggunakan metrik MSE (Continuous)
             - **Line (Shape):** Continuous lines menunjukkan learning progression
             - **Dual subplot:** Normal scale vs Log scale untuk different perspectives
             
             **Pemilihan Warna:**
-            - **Biru (#2E86AB):** Training Loss - primary metric dengan warna authoritative
-            - **Orange Hangat (#F18F01):** Validation Loss - complementary color untuk comparison
-            - **Color psychology:** Biru = stability/trust, Orange = attention/validation
+            - **Biru (#2E86AB):** Digunakan untuk Training Loss. Warna ini dipilih karena memberikan kesan stabilitas, kepercayaan, dan otoritas sebagai metrik utama.
+            - **Orange Hangat (#F18F01):** Digunakan untuk Validation Loss. Berfungsi sebagai warna komplementer untuk membedakan kategori dan menarik perhatian pada validasi data.
             - **High contrast:** Mudah dibedakan untuk analysis
-            - **Consistent theme:** Menggunakan palette yang sama dengan visualisasi lain
             
             **Interpretasi Loss Curve:**
-            - **Good training:** Kedua lines turun bersamaan, gap kecil antara train-val
-            - **Overfitting:** Training turun terus, validation naik/flat
+            - **Good training:** Idealnya, kedua garis (biru dan oranye) turun secara bersamaan dengan celah (gap) yang kecil di antara keduanya.
+            - **Overfitting:** Training turun terus, namun validation loss justru naik/flat
             - **Underfitting:** Kedua lines tinggi dan flat, tidak ada improvement
-            - **Optimal stopping:** Titik dimana validation loss mulai naik
+            - **Optimal stopping:** Titik tepat sebelum validation loss mulai naik kembali; di sinilah model mencapai performa terbaiknya.
             - **Log scale benefit:** Melihat improvement detail pada loss values yang kecil
+            
+             **Analisis Hasil Plot:**
+            - **LSTM Training History:** Training loss (biru) turun tajam dan stabil di angka rendah. Namun, validation loss (oranye) menunjukkan volatilitas tinggi dengan lonjakan tajam (spikes) di beberapa epoch awal sebelum akhirnya turun kembali. Hal ini mengindikasikan sensitivitas model LSTM terhadap urutan data tertentu pada set validasi.
+            - **GRU Training History:** Menunjukkan pola yang lebih stabil dibandingkan LSTM. Garis training dan validation turun lebih sinkron, meskipun masih terdapat fluktuasi kecil pada validation loss. Hal ini menjelaskan mengapa dalam hasil metrik Anda, GRU cenderung lebih unggul dalam stabilitas dibandingkan LSTM untuk dataset ini.
             """)
 
 with tab4:

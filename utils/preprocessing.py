@@ -45,37 +45,54 @@ def test_stationarity(timeseries):
         'interpretation': interpretation
     }
 
-def prepare_lstm_data(data, train_ratio=0.8, window_size=60):
+def prepare_lstm_data(data, window_size=60, test_years=5):
     """
     Prepare data untuk LSTM/GRU training dengan proper scaling
+    Use all historical data for training, recent years for testing
     
     Parameters:
     -----------
     data : DataFrame
         Dataset dengan kolom 'Close'
-    train_ratio : float
-        Rasio data training
     window_size : int
         Lookback period untuk sequences
+    test_years : int
+        Years of recent data to use for testing
         
     Returns:
     --------
     X_train, y_train, X_test, y_test, scaler, train_size
     """
-    dataset = data[['Close']].values
+    # Ensure parameters are integers
+    window_size = int(window_size)
+    test_years = int(test_years)
     
-    # Split data
-    train_size = int(len(dataset) * train_ratio)
-    train_raw = dataset[:train_size]
-    test_raw = dataset[train_size:]
+    # Use last 5 years for testing, rest for training
+    test_points = test_years * 250
+    
+    if len(data) > test_points:
+        train_data = data.iloc[:-test_points]
+        test_data = data.iloc[-test_points:]
+        print(f"Training: {len(train_data)} points (~{len(train_data)/250:.1f} years)")
+        print(f"Testing: {len(test_data)} points (~{len(test_data)/250:.1f} years)")
+    else:
+        # Fallback if not enough data
+        train_size = int(len(data) * 0.8)
+        train_data = data.iloc[:train_size]
+        test_data = data.iloc[train_size:]
+        print(f"Fallback split - Training: {len(train_data)}, Testing: {len(test_data)}")
+    
+    train_dataset = train_data[['Close']].values
+    test_dataset = test_data[['Close']].values
     
     # Fit scaler HANYA pada training data
     scaler = MinMaxScaler(feature_range=(0, 1))
-    train_scaled = scaler.fit_transform(train_raw)
-    test_scaled = scaler.transform(test_raw)
+    train_scaled = scaler.fit_transform(train_dataset)
+    test_scaled = scaler.transform(test_dataset)
     
     # Create sequences
     def create_sequences(data, window):
+        window = int(window)  # Ensure window is integer
         X, y = [], []
         for i in range(window, len(data)):
             X.append(data[i-window:i, 0])
@@ -89,19 +106,33 @@ def prepare_lstm_data(data, train_ratio=0.8, window_size=60):
     X_train = X_train.reshape((X_train.shape[0], X_train.shape[1], 1))
     X_test = X_test.reshape((X_test.shape[0], X_test.shape[1], 1))
     
-    return X_train, y_train, X_test, y_test, scaler, train_size
+    return X_train, y_train, X_test, y_test, scaler, len(train_data)
 
-def prepare_arima_data(data, train_ratio=0.8):
+def prepare_arima_data(data, test_years=5):
     """
     Prepare data untuk ARIMA (tidak perlu scaling)
+    Use all historical data for training, recent years for testing
     
     Returns:
     --------
     train_data, test_data, train_size
     """
-    train_size = int(len(data) * train_ratio)
+    # Ensure parameter is integer
+    test_years = int(test_years)
     
-    train_data = data['Close'][:train_size]
-    test_data = data['Close'][train_size:]
+    # Use last 5 years for testing, rest for training
+    test_points = test_years * 250
     
-    return train_data, test_data, train_size
+    if len(data) > test_points:
+        train_data = data['Close'].iloc[:-test_points]
+        test_data = data['Close'].iloc[-test_points:]
+        print(f"ARIMA Training: {len(train_data)} points (~{len(train_data)/250:.1f} years)")
+        print(f"ARIMA Testing: {len(test_data)} points (~{len(test_data)/250:.1f} years)")
+    else:
+        # Fallback if not enough data
+        train_size = int(len(data) * 0.8)
+        train_data = data['Close'].iloc[:train_size]
+        test_data = data['Close'].iloc[train_size:]
+        print(f"ARIMA Fallback - Training: {len(train_data)}, Testing: {len(test_data)}")
+    
+    return train_data, test_data, len(train_data)

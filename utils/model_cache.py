@@ -4,7 +4,8 @@ import pandas as pd
 import numpy as np
 from utils.data_loader import load_data, filter_index_data
 from utils.preprocessing import calculate_technical_indicators, prepare_lstm_data, prepare_arima_data
-from utils.modeling import train_arima_model, build_lstm_model, build_gru_model, train_deep_learning_model
+from utils.modeling import build_lstm_model, build_gru_model, train_deep_learning_model
+from utils.ml_arima import train_ml_arima_model
 from utils.metrics import calculate_metrics
 
 CACHE_DIR = "model_cache"
@@ -50,14 +51,14 @@ def train_and_cache_models(index_name='NYA', train_ratio=0.8, window_size=60, ep
     
     # Prepare data for models
     X_train, y_train, X_test, y_test, scaler, train_size = prepare_lstm_data(
-        data, train_ratio, window_size
+        data, window_size
     )
-    train_data_arima, test_data_arima, _ = prepare_arima_data(data, train_ratio)
+    train_data_arima, test_data_arima, _ = prepare_arima_data(data)
     
-    # Train ARIMA
-    print("Training ARIMA...")
-    arima_preds, arima_errors = train_arima_model(
-        train_data_arima, test_data_arima, order=(5, 1, 0), window_size=window_size
+    # Train ML-ARIMA
+    print("Training ML-ARIMA...")
+    arima_preds, arima_errors, _ = train_ml_arima_model(
+        train_data_arima, test_data_arima, window_size=window_size
     )
     
     # Train LSTM

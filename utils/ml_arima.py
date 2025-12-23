@@ -1,118 +1,148 @@
 import numpy as np
 import pandas as pd
 from statsmodels.tsa.arima.model import ARIMA
-from sklearn.model_selection import ParameterGrid
 from sklearn.metrics import mean_squared_error
-import itertools
 import warnings
 warnings.filterwarnings('ignore')
 
-class MLAutoARIMA:
+class FastMLAutoARIMA:
     """
-    Machine Learning approach to ARIMA using automated parameter selection
+    Ultra-fast ML approach to ARIMA with smart parameter selection
     """
     
-    def __init__(self, max_p=5, max_d=2, max_q=5):
-        self.max_p = max_p
-        self.max_d = max_d
-        self.max_q = max_q
+    def __init__(self):
         self.best_order = None
         self.best_aic = np.inf
         self.model = None
         self.training_history = []
         
-    def grid_search_fit(self, train_data, validation_data=None):
+    def smart_grid_search(self, train_data):
         """
-        ML-style grid search to find optimal ARIMA parameters
+        Smart grid search - only test promising combinations
         """
-        # Create parameter grid
-        p_values = range(0, self.max_p + 1)
-        d_values = range(0, self.max_d + 1)
-        q_values = range(0, self.max_q + 1)
+        # Include original (5,1,0) + promising alternatives
+        promising_orders = [
+            (5, 1, 0),  # Original best performing
+            (1, 1, 0), (1, 1, 1), (2, 1, 0), (2, 1, 1),
+            (0, 1, 1), (0, 1, 2), (1, 1, 2), (3, 1, 0),
+            (4, 1, 0), (1, 0, 1), (2, 0, 1)
+        ]
         
-        param_combinations = list(itertools.product(p_values, d_values, q_values))
+        print(f"Fast Auto-ARIMA: Testing {len(promising_orders)} optimized combinations...")
         
-        print(f"Training Auto-ARIMA with {len(param_combinations)} parameter combinations...")
-        
-        for i, (p, d, q) in enumerate(param_combinations):
+        for i, (p, d, q) in enumerate(promising_orders):
             try:
-                # Fit ARIMA model
                 temp_model = ARIMA(train_data, order=(p, d, q))
                 fitted_model = temp_model.fit()
                 
-                # Calculate validation score
-                if validation_data is not None:
-                    # Use validation data for model selection
-                    forecast = fitted_model.forecast(steps=len(validation_data))
-                    mse = mean_squared_error(validation_data, forecast)
-                    score = mse
-                else:
-                    # Use AIC for model selection
-                    score = fitted_model.aic
-                
-                # Store training history (ML-style)
                 self.training_history.append({
                     'iteration': i,
                     'parameters': (p, d, q),
-                    'score': score,
                     'aic': fitted_model.aic
                 })
                 
-                # Update best model
-                if score < self.best_aic:
-                    self.best_aic = score
+                if fitted_model.aic < self.best_aic:
+                    self.best_aic = fitted_model.aic
                     self.best_order = (p, d, q)
                     self.model = fitted_model
                     
-            except Exception as e:
+            except Exception:
                 continue
         
-        print(f"Best ARIMA order found: {self.best_order} with score: {self.best_aic:.4f}")
+        # Fallback to simple ARIMA if nothing works
+        if self.best_order is None:
+            self.best_order = (1, 1, 1)
+            
+        print(f"Best order: {self.best_order} (AIC: {self.best_aic:.2f})")
         return self
     
-    def predict(self, steps=1):
-        """ML-style predict method"""
-        if self.model is None:
-            raise ValueError("Model not fitted yet!")
-        return self.model.forecast(steps=steps)
-    
-    def get_training_history(self):
-        """Get training history like ML models"""
-        return pd.DataFrame(self.training_history)
+
 
 def train_ml_arima_model(train_data, test_data, window_size=60):
     """
-    Train ARIMA using ML approach with automated parameter selection
+    True ML-ARIMA: Automated parameter learning with validation
     """
-    # Split training data for validation
-    val_size = int(len(train_data) * 0.2)
-    train_subset = train_data[:-val_size]
-    val_subset = train_data[-val_size:]
+    print("ML-ARIMA: Starting automated parameter optimization...")
     
-    # Initialize ML Auto-ARIMA
-    ml_arima = MLAutoARIMA(max_p=5, max_d=2, max_q=3)
+    # ML approach: Use validation set for parameter selection
+    val_size = 300  # Small validation set for speed
+    train_subset = train_data[-2500:]  # Use recent 10 years for parameter selection
+    train_part = train_subset[:-val_size]
+    val_part = train_subset[-val_size:]
     
-    # Fit with grid search (ML approach)
-    ml_arima.grid_search_fit(train_subset, val_subset)
+    # ML candidates: Focus on most promising parameters
+    candidates = [
+        (5, 1, 0),  
+        (4, 1, 0), (3, 1, 0), (2, 1, 0), (1, 1, 0),
+        (1, 1, 1), (2, 1, 1)
+    ]
     
-    # Make rolling predictions (like original)
+    # ML training: Find best parameters via validation
+    best_mse = np.inf
+    best_order = (5, 1, 0)
+    training_log = []
+    
+    print(f"ML-ARIMA: Training on {len(candidates)} parameter combinations...")
+    
+    for i, (p, d, q) in enumerate(candidates):
+        try:
+            # Train model
+            model = ARIMA(train_part, order=(p, d, q))
+            fitted = model.fit()
+            
+            # Validate performance
+            val_pred = fitted.forecast(steps=len(val_part))
+            mse = mean_squared_error(val_part, val_pred)
+            
+            # Log training progress (ML-style)
+            training_log.append({
+                'epoch': i + 1,
+                'parameters': (p, d, q),
+                'validation_mse': mse,
+                'aic': fitted.aic
+            })
+            
+            print(f"  Epoch {i+1}/{len(candidates)}: {(p,d,q)} -> Val MSE: {mse:.2f}")
+            
+            # Update best model (ML learning)
+            if mse < best_mse:
+                best_mse = mse
+                best_order = (p, d, q)
+            print(f"  ✓ New best model: {best_order} (MSE: {best_mse:.2f})")
+                
+        except Exception as e:
+            print(f"  X Failed: {(p,d,q)}")
+            continue
+    
+    print(f"\nML-ARIMA Training Complete!")
+    print(f"Best parameters: {best_order} (Validation MSE: {best_mse:.2f})")
+    
+    # Use learned parameters for prediction
     history = [x for x in train_data]
     predictions = []
     errors = []
     
     test_actual = test_data[window_size:]
+    total_predictions = len(test_actual)
     
-    for t in range(len(test_actual)):
+    print(f"ML-ARIMA: Making {total_predictions} predictions with learned parameters...")
+    
+    for t in range(total_predictions):
         try:
-            # Use the best order found by ML approach
-            model = ARIMA(history[-200:], order=ml_arima.best_order)
+            model = ARIMA(history[-200:], order=best_order)
             model_fit = model.fit()
             pred = model_fit.forecast()[0]
             predictions.append(pred)
             history.append(test_actual.iloc[t])
-        except Exception as e:
+            
+            if (t + 1) % 200 == 0:
+                progress = (t + 1) / total_predictions * 100
+                print(f"  Prediction progress: {t+1}/{total_predictions} ({progress:.1f}%)")
+                
+        except Exception:
             errors.append(t)
             predictions.append(history[-1])
             history.append(test_actual.iloc[t])
     
-    return np.array(predictions), errors, ml_arima.get_training_history()
+    print(f"ML-ARIMA completed! Errors: {len(errors)}/{total_predictions}")
+    return np.array(predictions), errors, pd.DataFrame(training_log)
